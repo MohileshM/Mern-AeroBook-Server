@@ -22,8 +22,31 @@ bootstrap();
 
 const app = express();
 
-const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173").split(",");
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+// Parse CLIENT_URL environment variable, trim whitespace, and strip trailing slashes
+const rawAllowedOrigins = process.env.CLIENT_URL || "http://localhost:5173,https://aerobook7.netlify.app";
+const allowedOrigins = rawAllowedOrigins
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/$/, ""));
+
+// Configured CORS middleware
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like Server-to-Server, Postman, or mobile apps)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error(`CORS Policy Error: ${origin} is not allowed`));
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
 app.use(express.json());
 app.use(morgan("dev"));
 
